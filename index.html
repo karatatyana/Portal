@@ -62,6 +62,20 @@ const supabase = window.supabase.createClient(
 
 
 
+<script>
+async function testConnection() {
+  const { data, error } = await supabase
+    .from("progress")
+    .select("*");
+
+  console.log("DATA:", data);
+  console.log("ERROR:", error);
+}
+
+testConnection();
+</script>
+
+
 
 </body>
 </html>
