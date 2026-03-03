@@ -1,3 +1,4 @@
+// ======================================
 // SUPABASE INIT
 // ======================================
 
@@ -16,6 +17,7 @@ let currentLessonId = null;
 let currentModuleIndex = null;
 let lessonTimer = null;
 
+
 // ======================================
 // INIT
 // ======================================
@@ -23,7 +25,7 @@ let lessonTimer = null;
 document.addEventListener("DOMContentLoaded", async () => {
 
   renderSidebar();
-  renderModulesGrid();
+// renderModulesGrid();  // УБРАТЬ
 
   const { data } = await db.auth.getSession();
 
@@ -32,7 +34,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadUserProfile();
     showMainContent();
   }
+
+  db.auth.onAuthStateChange((event, session) => {
+
+  if (session) {
+
+    currentUser = session.user;
+    loadUserProfile();
+    showMainContent();
+
+  } else {
+
+    handleLogoutUI();
+
+  }
+
 });
+});
+
 
 // ======================================
 // PROFILE
@@ -42,44 +61,23 @@ async function loadUserProfile() {
 
   if (!currentUser) return;
 
-  const { data, error } = await db
+  const { data } = await db
     .from("profiles")
     .select("role, full_name")
     .eq("id", currentUser.id)
     .single();
 
-  if (!error && data) {
-    userRole = data.role || "student";
-    showUserName(data);
-  } else {
-    userRole = "student";
-  }
+  userRole = data?.role || "student";
 
+  showUserName(data);
   checkAdminUI();
   updateCourseProgress();
 }
 
+
 // ======================================
 // AUTH
 // ======================================
-
-window.signUp = async function () {
-
-  const email = document.getElementById("email").value;
-  const password = document.getElementById("password").value;
-  const name = document.getElementById("name")?.value || "";
-
-  const { error } = await db.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { full_name: name }
-    }
-  });
-
-  document.getElementById("authMessage").innerText =
-    error ? error.message : "Регистрация успешна! Проверь email.";
-};
 
 window.signIn = async function () {
 
@@ -97,14 +95,30 @@ window.signIn = async function () {
   }
 
   currentUser = data.user;
-
   await loadUserProfile();
   showMainContent();
 };
 
+
+// ✅ ДОБАВЛЕНА КОРРЕКТНАЯ ФУНКЦИЯ ВЫХОДА
 window.signOut = async function () {
 
+  clearTimeout(lessonTimer);
+
   await db.auth.signOut();
+
+  // сброс состояний
+  currentUser = null;
+  currentLessonId = null;
+  currentModuleIndex = null;
+};
+
+
+// ======================================
+// LOGOUT UI RESET
+// ======================================
+
+function handleLogoutUI() {
 
   currentUser = null;
   userRole = "student";
@@ -114,30 +128,41 @@ window.signOut = async function () {
   document.getElementById("authBlock").style.display = "flex";
   document.getElementById("userPanel").style.display = "none";
 
+  document.body.classList.remove("lesson-page");
+  hideGlobalProgress();
   checkAdminUI();
-};
+}
+
 
 // ======================================
 // UI
 // ======================================
 
 function showMainContent() {
+
   document.getElementById("authBlock").style.display = "none";
   document.getElementById("mainContent").style.display = "flex";
   document.getElementById("userPanel").style.display = "flex";
+
+  document.body.classList.remove("lesson-page");
+  showGlobalProgress();
+  renderModulesGrid();
 }
 
 function showUserName(profile) {
 
   const nameBlock = document.getElementById("userName");
-  if (!nameBlock) return;
+  const roleBlock = document.getElementById("userRole");
 
   const name =
     profile?.full_name ||
-    currentUser.user_metadata?.full_name ||
+    currentUser?.user_metadata?.full_name ||
     "Пользователь";
 
-  nameBlock.textContent = "Привет, " + name;
+  if (nameBlock) nameBlock.textContent = "Привет, " + name;
+  if (roleBlock)
+    roleBlock.textContent =
+      userRole === "admin" ? "Админка" : "Личный кабинет";
 }
 
 function checkAdminUI() {
@@ -148,6 +173,7 @@ function checkAdminUI() {
   adminButton.style.display =
     userRole === "admin" ? "block" : "none";
 }
+
 
 // ======================================
 // ADMIN
@@ -160,6 +186,9 @@ window.openAdminPanel = async function () {
   document.getElementById("mainContent").style.display = "none";
   document.getElementById("adminScreen").style.display = "block";
 
+  document.body.classList.remove("lesson-page");
+  hideGlobalProgress();
+
   await loadAdminData();
 };
 
@@ -167,37 +196,11 @@ window.closeAdminPanel = function () {
 
   document.getElementById("adminScreen").style.display = "none";
   document.getElementById("mainContent").style.display = "flex";
+
+  document.body.classList.remove("lesson-page");
+  showGlobalProgress();
 };
 
-async function loadAdminData() {
-
-  const container = document.getElementById("adminUsersList");
-  if (!container) return;
-
-  const { data: users } = await db
-    .from("profiles")
-    .select("id, full_name");
-
-  let html = "";
-
-  for (const user of users || []) {
-
-    const { data: progress } = await db
-      .from("progress")
-      .select("lesson_id")
-      .eq("user_id", user.id)
-      .eq("completed", true);
-
-    html += `
-      <div style="margin-bottom:15px; padding:10px; border:1px solid #ccc;">
-        <strong>${user.full_name || "Без имени"}</strong><br>
-        Завершено уроков: ${progress ? progress.length : 0}
-      </div>
-    `;
-  }
-
-  container.innerHTML = html;
-}
 
 // ======================================
 // SIDEBAR
@@ -215,19 +218,33 @@ function renderSidebar() {
     const block = document.createElement("div");
     block.className = "module-block";
 
-    block.innerHTML = `
-      <div class="module-header">
-        ${module.title}
-      </div>
-    `;
+    const header = document.createElement("div");
+    header.className = "module-header";
+    header.textContent = module.title;
 
-    block.onclick = () => {
-      showModuleLessons(moduleIndex);
-    };
+    const lessonsContainer = document.createElement("div");
+    lessonsContainer.className = "module-lessons";
 
+    module.lessons.forEach((lesson, lessonIndex) => {
+
+      const lessonItem = document.createElement("div");
+      lessonItem.className = "lesson";
+      lessonItem.textContent = lesson.title;
+
+      lessonItem.onclick = (e) => {
+        e.stopPropagation();
+        openLesson(moduleIndex, lessonIndex);
+      };
+
+      lessonsContainer.appendChild(lessonItem);
+    });
+
+    block.appendChild(header);
+    block.appendChild(lessonsContainer);
     sidebar.appendChild(block);
   });
 }
+
 
 // ======================================
 // MODULE GRID
@@ -235,7 +252,11 @@ function renderSidebar() {
 
 function renderModulesGrid() {
 
+
   clearTimeout(lessonTimer);
+
+  document.body.classList.remove("lesson-page");
+  showGlobalProgress();
 
   const content = document.getElementById("content");
 
@@ -256,18 +277,21 @@ function renderModulesGrid() {
     `;
 
     card.onclick = () => showModuleLessons(moduleIndex);
-
     grid.appendChild(card);
   });
 }
+
 
 // ======================================
 // LESSON LIST
 // ======================================
 
-function showModuleLessons(moduleIndex) {
+async function showModuleLessons(moduleIndex) {
 
   clearTimeout(lessonTimer);
+
+  document.body.classList.remove("lesson-page");
+  hideGlobalProgress();
 
   currentModuleIndex = moduleIndex;
 
@@ -287,25 +311,57 @@ function showModuleLessons(moduleIndex) {
   const grid = document.getElementById("modulesGrid");
   const module = courseData[moduleIndex];
 
+  // 🔹 получаем завершённые уроки пользователя
+  let completedLessons = [];
+
+  if (currentUser) {
+    const { data } = await db
+      .from("progress")
+      .select("lesson_id")
+      .eq("user_id", currentUser.id)
+      .eq("completed", true);
+
+    completedLessons = data ? data.map(p => p.lesson_id) : [];
+  }
+
   module.lessons.forEach((lesson, lessonIndex) => {
 
     const lessonCard = document.createElement("div");
     lessonCard.className = "lesson-card";
+
     lessonCard.innerHTML =
       `<div class="lesson-title">${lesson.title}</div>`;
 
-    lessonCard.onclick = () =>
-      openLesson(moduleIndex, lessonIndex);
+    // 🔴 если урок завершён — добавляем кружок
+    if (completedLessons.includes(lesson.id)) {
+  const badge = document.createElement("div");
+  badge.className = "lesson-status completed";
+  badge.innerText = "Пройден";
+  lessonCard.appendChild(badge);
+} else {
+  const badge = document.createElement("div");
+  badge.className = "lesson-status not-completed";
+  badge.innerText = "Не пройден";
+  lessonCard.appendChild(badge);
+}
+
+    lessonCard.onclick =
+      () => openLesson(moduleIndex, lessonIndex);
 
     grid.appendChild(lessonCard);
   });
 }
+
+
 
 // ======================================
 // OPEN LESSON
 // ======================================
 
 function openLesson(moduleIndex, lessonIndex) {
+
+  document.body.classList.add("lesson-page");
+  hideGlobalProgress();
 
   const lesson =
     courseData[moduleIndex].lessons[lessonIndex];
@@ -330,6 +386,22 @@ function openLesson(moduleIndex, lessonIndex) {
   startLessonTimer();
 }
 
+
+// ======================================
+// PROGRESS VISIBILITY
+// ======================================
+
+function hideGlobalProgress() {
+  const progress = document.getElementById("globalProgress");
+  if (progress) progress.style.display = "none";
+}
+
+function showGlobalProgress() {
+  const progress = document.getElementById("globalProgress");
+  if (progress) progress.style.display = "block";
+}
+
+
 // ======================================
 // PROGRESS TIMER
 // ======================================
@@ -353,6 +425,7 @@ function startLessonTimer() {
 
   }, 180000);
 }
+
 
 // ======================================
 // UPDATE PROGRESS
@@ -381,13 +454,15 @@ async function updateCourseProgress() {
 
   const completedCount = data ? data.length : 0;
 
-  const percent = totalLessons === 0
-    ? 0
-    : Math.round((completedCount / totalLessons) * 100);
+  const percent =
+    totalLessons === 0
+      ? 0
+      : Math.round((completedCount / totalLessons) * 100);
 
   percentText.textContent = percent + "%";
   progressFill.style.width = percent + "%";
 }
+
 
 // ======================================
 // ЛОГОТИП → НА ГЛАВНУЮ
@@ -407,6 +482,122 @@ window.addEventListener("load", () => {
     currentLessonId = null;
     currentModuleIndex = null;
 
+    document.body.classList.remove("lesson-page");
+    showGlobalProgress();
     renderModulesGrid();
   };
 });
+
+
+
+// ======================================
+// ИНДИКАТОР ЗАГРУЗКИ ================
+
+window.signIn = async function () {
+
+  const btn = document.querySelector(".auth-btn.primary");
+  btn.textContent = "Входим...";
+  btn.disabled = true;
+
+  const { data, error } = await db.auth.signInWithPassword({
+    email: document.getElementById("email").value,
+    password: document.getElementById("password").value
+  });
+
+  if (error) {
+    document.getElementById("authMessage").innerText = error.message;
+    btn.textContent = "Войти";
+    btn.disabled = false;
+    return;
+  }
+
+  currentUser = data.user;
+  await loadUserProfile();
+  showMainContent();
+
+  btn.textContent = "Войти";
+  btn.disabled = false;
+};
+
+
+
+
+// ======================================
+// ADMIN DATA
+// ======================================
+
+async function loadAdminData() {
+
+  const container = document.getElementById("adminUsersList");
+  if (!container) return;
+
+  container.innerHTML = "Загрузка...";
+
+  // 1️⃣ Получаем всех пользователей
+  const { data: users, error: usersError } = await db
+    .from("profiles")
+    .select("id, full_name, role");
+
+  if (usersError) {
+    container.innerHTML = "Ошибка загрузки пользователей";
+    console.error(usersError);
+    return;
+  }
+
+  // 2️⃣ Получаем прогресс
+  const { data: progress, error: progressError } = await db
+    .from("progress")
+    .select("user_id, lesson_id")
+    .eq("completed", true);
+
+  if (progressError) {
+    container.innerHTML = "Ошибка загрузки прогресса";
+    console.error(progressError);
+    return;
+  }
+
+  // 3️⃣ Считаем общее количество уроков
+  let totalLessons = 0;
+  courseData.forEach(m =>
+    totalLessons += m.lessons.length
+  );
+
+  container.innerHTML = "";
+
+  users.forEach(user => {
+
+    const userProgress =
+      progress?.filter(p => p.user_id === user.id) || [];
+
+    const completedCount = userProgress.length;
+
+    const percent =
+      totalLessons === 0
+        ? 0
+        : Math.round((completedCount / totalLessons) * 100);
+
+    const block = document.createElement("div");
+    block.className = "admin-user-card";
+
+    block.innerHTML = `
+      <div><strong>${user.full_name || "Без имени"}</strong></div>
+      <div>Роль: ${user.role}</div>
+      <div>
+        Пройдено: ${completedCount} из ${totalLessons} уроков
+      </div>
+      <div class="admin-progress-bar">
+        <div class="admin-progress-fill"
+             style="width:${percent}%"></div>
+      </div>
+      <div style="margin-top:6px; font-size:13px; opacity:0.7;">
+        ${percent}%
+      </div>
+    `;
+
+    container.appendChild(block);
+  });
+
+  if (users.length === 0) {
+    container.innerHTML = "Пользователей пока нет.";
+  }
+}

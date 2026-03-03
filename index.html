@@ -8,15 +8,26 @@
 <body>
 
 <!-- ===== ВЕРХНЯЯ ПАНЕЛЬ ===== -->
-<div id="userPanel" style="display:none; justify-content:flex-end; padding:10px; gap:10px;">
-  <span id="userName"></span>
+<div id="userPanel">
 
-  <!-- КНОПКА АДМИНА -->
-  <div id="adminButton" style="display:none;">
-    <button onclick="openAdminPanel()">Админ</button>
+  <div class="panel-left">
+    <div id="siteLogo" class="logo">
+  <img src="images/logo.png" alt="LOGISTIKA PRO">
+</div>
   </div>
 
-  <button onclick="signOut()">Выйти</button>
+  <div class="panel-right">
+    <div id="adminButton" style="display:none;">
+      <button class="btn btn-secondary" onclick="openAdminPanel()">
+        Админ
+      </button>
+    </div>
+
+    <button class="btn btn-primary" onclick="signOut()">
+      Выйти
+    </button>
+  </div>
+
 </div>
 
 
@@ -45,32 +56,37 @@
 <!-- ===== ОСНОВНОЙ КОНТЕНТ ===== -->
 <div class="layout" id="mainContent" style="display:none;">
 
+  <!-- ===== SIDEBAR ===== -->
   <aside class="sidebar">
-    <div class="sidebar-logo">
-      <img src="images/logo.png" id="siteLogo">
-    </div>
-
-    <h2>Курс «Я — логист»</h2>
+    <h3>Курс «Я — логист»</h3>
     <div id="sidebarMenu"></div>
   </aside>
 
+  <!-- ===== MAIN PAGE ===== -->
   <main class="main">
 
-    <div class="progress-wrapper">
-      <div class="progress-info">
-        Прогресс прохождения курса:
-        <span id="progressPercent">0%</span>
-      </div>
-      <div class="progress-bar">
-        <div id="progressFill" class="progress-fill"></div>
-      </div>
-    </div>
 
+    <!-- ===== ПРОГРЕСС ===== -->
+<div class="progress-wrapper" id="globalProgress" style="display:none;">
+
+  <div class="progress-header">
+    <span>Прогресс прохождения курса</span>
+    <span id="progressPercent" class="progress-percent">0%</span>
+  </div>
+
+  <div class="progress-bar">
+    <div id="progressFill" class="progress-fill"></div>
+  </div>
+
+</div>
+
+    <!-- ===== ДИНАМИЧЕСКИЙ КОНТЕНТ ===== -->
     <div id="content">
       <div id="modulesGrid" class="modules-grid"></div>
     </div>
 
   </main>
+
 </div>
 
 
@@ -81,9 +97,9 @@
 
   <div id="adminUsersList"></div>
 
-  <br><br>
-
-  <button onclick="closeAdminPanel()">← Назад</button>
+  <button class="btn btn-primary" onclick="closeAdminPanel()">
+    ← Вернуться к обучению
+  </button>
 
 </div>
 
