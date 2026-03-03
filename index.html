@@ -21,17 +21,24 @@
 
 
 <!-- ===== АВТОРИЗАЦИЯ ===== -->
-<div id="authBlock" style="padding:20px; max-width:400px; margin:auto;">
-  <h2>Вход в систему</h2>
+<div id="authBlock">
+  <div class="auth-glass">
 
-  <input type="text" id="name" placeholder="Ваше имя" style="width:100%; margin-bottom:10px;">
-  <input type="email" id="email" placeholder="Email" style="width:100%; margin-bottom:10px;">
-  <input type="password" id="password" placeholder="Пароль" style="width:100%; margin-bottom:10px;">
+    <img src="images/logo2.png" class="auth-logo">
 
-  <button onclick="signUp()">Регистрация</button>
-  <button onclick="signIn()">Войти</button>
+    <h2>Курс «Я — логист»</h2>
+    <p class="auth-subtitle">Вход в обучающую платформу</p>
 
-  <p id="authMessage"></p>
+    <input type="text" id="name" placeholder="Ваше имя (для регистрации)">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Пароль">
+
+    <button class="auth-btn primary" onclick="signIn()">Войти</button>
+    <button class="auth-btn secondary" onclick="signUp()">Регистрация</button>
+
+    <p id="authMessage"></p>
+
+  </div>
 </div>
 
 
